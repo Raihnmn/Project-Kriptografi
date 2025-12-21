@@ -506,7 +506,7 @@ elif page == "Playground Enkripsi":
 # --- Tambahan Halaman S-Box Analyzer ---
 elif page == "S-Box Analyzer":
     st.markdown('<div class="main-header">🔎 S-Box Analyzer</div>', unsafe_allow_html=True)
-    st.info("Masukkan S-Box dalam format heksadesimal (512 karakter, 256 byte, tanpa spasi). Contoh: 637C... (AES S-Box)")
+    st.info("Masukkan S-Box dalam format heksadesimal (512 karakter, 256 byte, tanpa spasi) atau unggah file .xlsx berisi S-box (16x16 atau 256 baris 1 kolom). Contoh: 637C... (AES S-Box)")
 
     def parse_hex_sbox(hex_str):
         hex_str = hex_str.replace(" ", "").replace("\n", "")
@@ -519,16 +519,48 @@ elif page == "S-Box Analyzer":
             raise ValueError("S-Box harus 256 elemen")
         return arr
 
+    def parse_xlsx_sbox(uploaded_file):
+        try:
+            df = pd.read_excel(uploaded_file, header=None)
+            arr = None
+            # Cek bentuk 16x16 atau 256x1
+            if df.shape == (16, 16):
+                arr = df.values.flatten().tolist()
+            elif df.shape == (256, 1):
+                arr = df[0].tolist()
+            else:
+                raise ValueError("Format file harus 16x16 atau 256x1.")
+            if len(arr) != 256:
+                raise ValueError("S-Box harus 256 elemen.")
+            arr = [int(x) for x in arr]
+            return arr
+        except Exception as e:
+            raise ValueError(f"Gagal membaca file: {e}")
+
+    # Input HEX
     hex_input = st.text_area("Input S-Box (Hex)", height=120)
+    # Input XLSX
+    uploaded_xlsx = st.file_uploader("Atau unggah file S-Box (.xlsx)", type=["xlsx"])
+
     sbox_arr = None
     error_msg = None
-    if st.button("Parse S-Box Hex"):
-        try:
-            sbox_arr = parse_hex_sbox(hex_input.strip())
-            st.success("S-Box berhasil diparsing!")
-        except Exception as e:
-            error_msg = str(e)
-            st.error(f"Error: {error_msg}")
+    col_parse1, col_parse2 = st.columns(2)
+    with col_parse1:
+        if st.button("Parse S-Box Hex"):
+            try:
+                sbox_arr = parse_hex_sbox(hex_input.strip())
+                st.success("S-Box berhasil diparsing dari HEX!")
+            except Exception as e:
+                error_msg = str(e)
+                st.error(f"Error: {error_msg}")
+    with col_parse2:
+        if uploaded_xlsx is not None and st.button("Parse S-Box XLSX"):
+            try:
+                sbox_arr = parse_xlsx_sbox(uploaded_xlsx)
+                st.success("S-Box berhasil diparsing dari file XLSX!")
+            except Exception as e:
+                error_msg = str(e)
+                st.error(f"Error: {error_msg}")
 
     if sbox_arr:
         st.markdown('<div class="sbox-card"><b>Visualisasi S-Box (16x16 Matrix)</b></div>', unsafe_allow_html=True)
