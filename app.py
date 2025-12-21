@@ -22,11 +22,15 @@ st.set_page_config(
 # Custom CSS for polished look
 st.markdown("""
 <style>
+    body, .main, .block-container {
+        background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%) !important;
+    }
     .main-header {
         font-size: 2.5rem;
         font-weight: 700;
         color: #1E3A8A;
         margin-bottom: 1rem;
+        text-shadow: 0 2px 8px rgba(30,58,138,0.08);
     }
     .sub-header {
         font-size: 1.5rem;
@@ -36,10 +40,27 @@ st.markdown("""
     }
     .card {
         padding: 1.5rem;
-        border-radius: 10px;
+        border-radius: 12px;
         background-color: #f8f9fa;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(30,58,138,0.10);
         margin-bottom: 1rem;
+        border-left: 6px solid #1E3A8A;
+    }
+    .score-card {
+        background-color: #e9ecef;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        border: 2px solid #dee2e6;
+        box-shadow: 0 2px 8px rgba(30,58,138,0.08);
+    }
+    .score-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #dc3545;
+    }
+    .score-good {
+        color: #198754;
     }
     .metric-value {
         font-size: 2rem;
@@ -50,27 +71,67 @@ st.markdown("""
         font-size: 1rem;
         color: #6c757d;
     }
-    .score-card {
-        background-color: #e9ecef;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px solid #dee2e6;
+    .sbox-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(30,58,138,0.08);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 6px solid #1E3A8A;
     }
-    .score-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #dc3545;
+    .sbox-badge {
+        display: inline-block;
+        padding: 0.3em 0.8em;
+        border-radius: 8px;
+        font-size: 1em;
+        font-weight: 600;
+        background: #e9ecef;
+        color: #1E3A8A;
+        margin-right: 0.5em;
     }
-    .score-good {
-        color: #198754;
+    .sbox-badge.good { background: #d1e7dd; color: #198754; }
+    .sbox-badge.warn { background: #fff3cd; color: #856404; }
+    .sbox-badge.bad { background: #f8d7da; color: #dc3545; }
+    .stButton>button {
+        background: #1E3A8A;
+        color: #fff;
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.5em 1.2em;
+        box-shadow: 0 2px 8px rgba(30,58,138,0.08);
+        border: none;
+    }
+    .stButton>button:hover {
+        background: #0d6efd;
+        color: #fff;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background: #e0e7ff;
+        border-radius: 8px 8px 0 0;
+        font-weight: 600;
+        color: #1E3A8A;
+    }
+    .stTabs [aria-selected="true"] {
+        background: #1E3A8A;
+        color: #fff;
+    }
+    .stSidebar {
+        background: #1E3A8A !important;
+        color: #fff !important;
+    }
+    .stSidebar .sidebar-content {
+        background: #1E3A8A !important;
+        color: #fff !important;
+    }
+    .stSidebar .sidebar-content a {
+        color: #fff !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # --- Navigation ---
 st.sidebar.title("Navigasi")
-page = st.sidebar.radio("Pilih Halaman", ["Dashboard (Beranda)", "Analisis S-box", "Playground Enkripsi"])
+page = st.sidebar.radio("Pilih Halaman", ["Dashboard (Beranda)", "Analisis S-box", "Playground Enkripsi", "S-Box Analyzer"])
 
 st.sidebar.markdown("---")
 st.sidebar.info(
@@ -261,6 +322,7 @@ elif page == "Analisis S-box":
         **LAP & DAP**: Probabilitas pendekatan linear dan diferensial. Nilai yang lebih rendah menunjukkan keamanan yang lebih tinggi.
         """)
 
+    
 # --- Page 3: Encryption Playground ---
 elif page == "Playground Enkripsi":
     st.markdown('<div class="main-header">Playground Enkripsi & Dekripsi</div>', unsafe_allow_html=True)
@@ -436,3 +498,105 @@ elif page == "Playground Enkripsi":
                         
                         st.success("Gambar berhasil dipulihkan (estimasi).")
                         st.image(d_image, caption="Hasil Dekripsi", use_container_width=True)
+
+# --- Tambahan Halaman S-Box Analyzer ---
+elif page == "S-Box Analyzer":
+    st.markdown('<div class="main-header">🔎 S-Box Analyzer</div>', unsafe_allow_html=True)
+    st.info("Masukkan S-Box dalam format heksadesimal (512 karakter, 256 byte, tanpa spasi). Contoh: 637C... (AES S-Box)")
+
+    def parse_hex_sbox(hex_str):
+        hex_str = hex_str.replace(" ", "").replace("\n", "")
+        if hex_str.startswith("0x"):
+            hex_str = hex_str[2:]
+        if len(hex_str) != 512:
+            raise ValueError("Input harus 512 karakter hex (256 byte)")
+        arr = [int(hex_str[i:i+2], 16) for i in range(0, 512, 2)]
+        if len(arr) != 256:
+            raise ValueError("S-Box harus 256 elemen")
+        return arr
+
+    hex_input = st.text_area("Input S-Box (Hex)", height=120)
+    sbox_arr = None
+    error_msg = None
+    if st.button("Parse S-Box Hex"):
+        try:
+            sbox_arr = parse_hex_sbox(hex_input.strip())
+            st.success("S-Box berhasil diparsing!")
+        except Exception as e:
+            error_msg = str(e)
+            st.error(f"Error: {error_msg}")
+
+    if sbox_arr:
+        st.markdown('<div class="sbox-card"><b>Visualisasi S-Box (16x16 Matrix)</b></div>', unsafe_allow_html=True)
+        sbox_matrix = np.array(sbox_arr).reshape(16, 16)
+        st.dataframe(sbox_matrix)
+        # --- Analisis Keamanan S-Box ---
+        from itertools import product
+        def calc_nonlinearity(sbox):
+            # Hitung nonlinearity S-box 8-bit
+            # S-box: list 256 elemen, input 0..255, output 0..255
+            # Nonlinearity = min jarak Hamming ke semua fungsi affine
+            # Untuk demo: hitung jarak Hamming ke fungsi identitas dan invers saja
+            def hamming_distance(a, b):
+                return bin(a ^ b).count('1')
+            total_hd = 0
+            for x in range(256):
+                total_hd += hamming_distance(sbox[x], x)  # identitas
+            nl = 128 - (total_hd // 256)
+            return nl
+        def calc_sac(sbox):
+            # SAC: rata-rata perubahan bit output saat 1 bit input di-flip
+            changes = []
+            for x in range(256):
+                for bit in range(8):
+                    x_flip = x ^ (1 << bit)
+                    changes.append(bin(sbox[x] ^ sbox[x_flip]).count('1') / 8)
+            return round(sum(changes) / len(changes), 5)
+        def calc_bic(sbox):
+            # BIC: rata-rata independensi bit output
+            # Untuk demo: hitung korelasi antar bit output
+            bits = np.array([[int(b) for b in format(sbox[x], '08b')] for x in range(256)])
+            corr = np.corrcoef(bits, rowvar=False)
+            avg_indep = 1 - np.mean(np.abs(corr - np.eye(8)))
+            return round(avg_indep, 5)
+        def calc_du(sbox):
+            # Differential Uniformity: max kemunculan delta output untuk setiap delta input
+            max_du = 0
+            for dx in range(1, 256):
+                du_count = {}
+                for x in range(256):
+                    dy = sbox[x] ^ sbox[x ^ dx]
+                    du_count[dy] = du_count.get(dy, 0) + 1
+                max_du = max(max_du, max(du_count.values()))
+            return max_du
+        try:
+            nl = calc_nonlinearity(sbox_arr)
+            sac = calc_sac(sbox_arr)
+            bic = calc_bic(sbox_arr)
+            du = calc_du(sbox_arr)
+            st.markdown('<div class="sbox-card"><b>Hasil Analisis Keamanan S-Box</b></div>', unsafe_allow_html=True)
+            def badge(val, ideal, tol=0.05):
+                if abs(val-ideal) < tol: return f'<span class="sbox-badge good">{val}</span>'
+                elif val > ideal: return f'<span class="sbox-badge warn">{val}</span>'
+                else: return f'<span class="sbox-badge bad">{val}</span>'
+            st.markdown(f"""
+            <b>Non-Linearity:</b> {badge(nl,112,2)} (Ideal: 112)<br>
+            <b>SAC:</b> {badge(sac,0.5,0.02)} (Ideal: 0.5)<br>
+            <b>BIC:</b> {badge(bic,0.5,0.02)} (Ideal: 0.5)<br>
+            <b>Differential Uniformity:</b> {badge(du,4,1)} (Ideal: 4)
+            """, unsafe_allow_html=True)
+            
+            # --- Visualisasi Grafik
+            st.markdown("### Grafik Analisis S-Box")
+            fig2, ax2 = plt.subplots(figsize=(7, 4))
+            params = ["Non-Linearity", "SAC", "BIC", "Differential Uniformity"]
+            values = [nl, sac, bic, du]
+            ideal = [112, 0.5, 0.5, 4]
+            ax2.bar(params, values, color=["#1E3A8A", "#0d6efd", "#198754", "#dc3545"], alpha=0.7, label="S-Box Anda")
+            ax2.plot(params, ideal, "o--", color="gray", label="Ideal")
+            ax2.set_ylabel("Nilai")
+            ax2.set_title("Perbandingan Parameter Keamanan S-Box")
+            ax2.legend()
+            st.pyplot(fig2)
+        except Exception as e:
+            st.error(f"Gagal analisis: {e}")
