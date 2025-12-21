@@ -24,6 +24,7 @@ st.markdown("""
 <style>
     body, .main, .block-container {
         background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%) !important;
+        color: #222 !important;
     }
     .main-header {
         font-size: 2.5rem;
@@ -35,16 +36,17 @@ st.markdown("""
     .sub-header {
         font-size: 1.5rem;
         font-weight: 600;
-        color: #333;
+        color: #222;
         margin-top: 2rem;
     }
     .card {
         padding: 1.5rem;
         border-radius: 12px;
-        background-color: #f8f9fa;
+        background-color: #f4f6fb;
         box-shadow: 0 4px 12px rgba(30,58,138,0.10);
         margin-bottom: 1rem;
         border-left: 6px solid #1E3A8A;
+        color: #222;
     }
     .score-card {
         background-color: #e9ecef;
@@ -53,6 +55,7 @@ st.markdown("""
         text-align: center;
         border: 2px solid #dee2e6;
         box-shadow: 0 2px 8px rgba(30,58,138,0.08);
+        color: #222;
     }
     .score-value {
         font-size: 2.5rem;
@@ -69,15 +72,16 @@ st.markdown("""
     }
     .metric-label {
         font-size: 1rem;
-        color: #6c757d;
+        color: #222;
     }
     .sbox-card {
-        background: #f8f9fa;
+        background: #f4f6fb;
         border-radius: 12px;
         box-shadow: 0 2px 8px rgba(30,58,138,0.08);
         padding: 1.5rem;
         margin-bottom: 1.5rem;
         border-left: 6px solid #1E3A8A;
+        color: #222;
     }
     .sbox-badge {
         display: inline-block;
