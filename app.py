@@ -10,6 +10,8 @@ import binascii
 
 from sbox_data import AES_SBOX, SBOX_K44
 import aes_engine
+import sbox_utils
+import metrics
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -170,14 +172,14 @@ st.markdown("""
 
 # --- Navigation ---
 st.sidebar.title("Navigasi")
-page = st.sidebar.radio("Pilih Halaman", ["Dashboard (Beranda)", "Analisis S-box", "Playground Enkripsi", "S-Box Analyzer"])
+page = st.sidebar.radio("Pilih Halaman", ["Dashboard (Beranda)", "Analisis S-box", "Playground Enkripsi", "S-Box Analyzer & Eksplorasi"])
 
 st.sidebar.markdown("---")
 st.sidebar.info(
     "**Analisis S-box K44**\n\n"
     "Berdasarkan jurnal penelitian:\n"
     "*AES S-box modification uses affine matrices exploration*\n\n"
-    "v1.1.0"
+    "v1.2.0 (With Generator)"
 )
 
 # --- Helper Functions ---
@@ -236,7 +238,7 @@ if page == "Dashboard (Beranda)":
     # 2. Methodology / Construction Steps
     st.markdown("### Metodologi: Bagaimana S-box K44 Dibuat?")
     with st.expander("Klik untuk melihat langkah-langkah konstruksi S-box K44", expanded=False):
-        st.markdown("""
+        st.markdown(r"""
         **Langkah 1: Polinomial Irreduksibel**
         
         Sama seperti AES standar, riset ini menggunakan polinomial: $x^8 + x^4 + x^3 + x + 1$ (0x11B). Ini adalah fondasi matematika di Galois Field $GF(2^8)$.
@@ -257,7 +259,7 @@ if page == "Dashboard (Beranda)":
         
         S-box final dibentuk menggunakan rumus transformasi:
         
-        $S\text{-}box = (K_{44} \\times Invers) \oplus Konstanta\_AES$
+        $S\text{-}box = (K_{44} \times Invers) \oplus Konstanta\_AES$
         
         Di mana $K_{44}$ adalah matriks baru hasil riset, dan Konstanta adalah 0x63 (sama dengan AES).
         """)
@@ -270,7 +272,7 @@ if page == "Dashboard (Beranda)":
     with c2:
         st.warning("**Confusion & Diffusion**: Prinsip dasar kriptografi. Confusion mengaburkan hubungan kunci dan ciphertext. Diffusion menyebarkan pengaruh 1 bit plaintext ke banyak bit ciphertext.")
 
-# --- Page 2: S-box Analyzer ---
+# --- Page 2: S-box Analyzer (Result Summary) ---
 elif page == "Analisis S-box":
     st.markdown('<div class="main-header">Analisis S-box</div>', unsafe_allow_html=True)
     st.markdown("Bandingkan properti kriptografi dan struktur S-box Standar AES vs. S-box K44 yang Diusulkan.")
@@ -553,136 +555,191 @@ elif page == "Playground Enkripsi":
                         st.success("Gambar berhasil dipulihkan (estimasi).")
                         st.image(d_image, caption="Hasil Dekripsi", use_container_width=True)
 
-# --- Tambahan Halaman S-Box Analyzer ---
-elif page == "S-Box Analyzer":
-    st.markdown('<div class="main-header">🔎 S-Box Analyzer</div>', unsafe_allow_html=True)
-    st.info("Masukkan S-Box dalam format heksadesimal (512 karakter, 256 byte, tanpa spasi) atau unggah file .xlsx berisi S-box (16x16 atau 256 baris 1 kolom). Contoh: 637C... (AES S-Box)")
-
-    def parse_hex_sbox(hex_str):
-        hex_str = hex_str.replace(" ", "").replace("\n", "")
-        if hex_str.startswith("0x"):
-            hex_str = hex_str[2:]
-        if len(hex_str) != 512:
-            raise ValueError("Input harus 512 karakter hex (256 byte)")
-        arr = [int(hex_str[i:i+2], 16) for i in range(0, 512, 2)]
-        if len(arr) != 256:
-            raise ValueError("S-Box harus 256 elemen")
-        return arr
-
-    def parse_xlsx_sbox(uploaded_file):
-        try:
-            df = pd.read_excel(uploaded_file, header=None)
-            arr = None
-            # Cek bentuk 16x16 atau 256x1
-            if df.shape == (16, 16):
-                arr = df.values.flatten().tolist()
-            elif df.shape == (256, 1):
-                arr = df[0].tolist()
-            else:
-                raise ValueError("Format file harus 16x16 atau 256x1.")
-            if len(arr) != 256:
-                raise ValueError("S-Box harus 256 elemen.")
-            arr = [int(x) for x in arr]
-            return arr
-        except Exception as e:
-            raise ValueError(f"Gagal membaca file: {e}")
-
-    # Input HEX
-    hex_input = st.text_area("Input S-Box (Hex)", height=120)
-    # Input XLSX
-    uploaded_xlsx = st.file_uploader("Atau unggah file S-Box (.xlsx)", type=["xlsx"])
-
+# --- Tambahan Halaman S-Box Analyzer (Refactored) ---
+elif page == "S-Box Analyzer & Eksplorasi":
+    st.markdown('<div class="main-header">🔎 S-Box Analyzer & Eksplorasi</div>', unsafe_allow_html=True)
+    
+    # 1. Source Selection
+    st.markdown("### 1. Sumber S-box")
+    source_choice = st.radio("Pilih Sumber S-box:", 
+                             ["Input Manual / Upload File", "Eksplorasi Matriks Affine (Generator)"],
+                             index=0, horizontal=True)
+    
+    
     sbox_arr = None
-    error_msg = None
-    col_parse1, col_parse2 = st.columns(2)
-    with col_parse1:
-        if st.button("Parse S-Box Hex"):
-            try:
-                sbox_arr = parse_hex_sbox(hex_input.strip())
-                st.success("S-Box berhasil diparsing dari HEX!")
-            except Exception as e:
-                error_msg = str(e)
-                st.error(f"Error: {error_msg}")
-    with col_parse2:
-        if uploaded_xlsx is not None and st.button("Parse S-Box XLSX"):
-            try:
-                sbox_arr = parse_xlsx_sbox(uploaded_xlsx)
-                st.success("S-Box berhasil diparsing dari file XLSX!")
-            except Exception as e:
-                error_msg = str(e)
-                st.error(f"Error: {error_msg}")
+    generated_matrix = None
+    
+    # Storage for analysis source name
+    sbox_source_name = "S-box Anda"
 
-    if sbox_arr:
-        st.markdown('<div class="sbox-card"><b>Visualisasi S-Box (16x16 Matrix)</b></div>', unsafe_allow_html=True)
-        sbox_matrix = np.array(sbox_arr).reshape(16, 16)
-        st.dataframe(sbox_matrix)
-        # --- Analisis Keamanan S-Box ---
-        from itertools import product
-        def calc_nonlinearity(sbox):
-            # Hitung nonlinearity S-box 8-bit
-            # S-box: list 256 elemen, input 0..255, output 0..255
-            # Nonlinearity = min jarak Hamming ke semua fungsi affine
-            # Untuk demo: hitung jarak Hamming ke fungsi identitas dan invers saja
-            def hamming_distance(a, b):
-                return bin(a ^ b).count('1')
-            total_hd = 0
-            for x in range(256):
-                total_hd += hamming_distance(sbox[x], x)  # identitas
-            nl = 128 - (total_hd // 256)
-            return nl
-        def calc_sac(sbox):
-            # SAC: rata-rata perubahan bit output saat 1 bit input di-flip
-            changes = []
-            for x in range(256):
-                for bit in range(8):
-                    x_flip = x ^ (1 << bit)
-                    changes.append(bin(sbox[x] ^ sbox[x_flip]).count('1') / 8)
-            return round(sum(changes) / len(changes), 5)
-        def calc_bic(sbox):
-            # BIC: rata-rata independensi bit output
-            # Untuk demo: hitung korelasi antar bit output
-            bits = np.array([[int(b) for b in format(sbox[x], '08b')] for x in range(256)])
-            corr = np.corrcoef(bits, rowvar=False)
-            avg_indep = 1 - np.mean(np.abs(corr - np.eye(8)))
-            return round(avg_indep, 5)
-        def calc_du(sbox):
-            # Differential Uniformity: max kemunculan delta output untuk setiap delta input
-            max_du = 0
-            for dx in range(1, 256):
-                du_count = {}
-                for x in range(256):
-                    dy = sbox[x] ^ sbox[x ^ dx]
-                    du_count[dy] = du_count.get(dy, 0) + 1
-                max_du = max(max_du, max(du_count.values()))
-            return max_du
-        try:
-            nl = calc_nonlinearity(sbox_arr)
-            sac = calc_sac(sbox_arr)
-            bic = calc_bic(sbox_arr)
-            du = calc_du(sbox_arr)
-            st.markdown('<div class="sbox-card"><b>Hasil Analisis Keamanan S-Box</b></div>', unsafe_allow_html=True)
-            def badge(val, ideal, tol=0.05):
-                if abs(val-ideal) < tol: return f'<span class="sbox-badge good">{val}</span>'
-                elif val > ideal: return f'<span class="sbox-badge warn">{val}</span>'
-                else: return f'<span class="sbox-badge bad">{val}</span>'
-            st.markdown(f"""
-            <b>Non-Linearity:</b> {badge(nl,112,2)} (Ideal: 112)<br>
-            <b>SAC:</b> {badge(sac,0.5,0.02)} (Ideal: 0.5)<br>
-            <b>BIC:</b> {badge(bic,0.5,0.02)} (Ideal: 0.5)<br>
-            <b>Differential Uniformity:</b> {badge(du,4,1)} (Ideal: 4)
-            """, unsafe_allow_html=True)
+    if source_choice == "Input Manual / Upload File":
+        st.info("Masukkan S-Box dalam format heksadesimal (512 karakter, 256 byte) atau unggah file .xlsx.")
+        
+        # Helper parsing functions
+        def parse_hex_sbox(hex_str):
+            hex_str = hex_str.replace(" ", "").replace("\n", "")
+            if hex_str.startswith("0x"): hex_str = hex_str[2:]
+            if len(hex_str) != 512:
+                raise ValueError(f"Input harus 512 karakter hex. Diterima: {len(hex_str)}")
+            arr = [int(hex_str[i:i+2], 16) for i in range(0, 512, 2)]
+            if len(arr) != 256: raise ValueError("S-Box harus 256 elemen")
+            return arr
+
+        def parse_xlsx_sbox(uploaded_file):
+            try:
+                df = pd.read_excel(uploaded_file, header=None)
+                if df.shape == (16, 16): arr = df.values.flatten().tolist()
+                elif df.shape == (256, 1): arr = df[0].tolist()
+                else: raise ValueError("Format file harus 16x16 atau 256x1.")
+                return [int(x) for x in arr]
+            except Exception as e:
+                raise ValueError(f"Gagal membaca file: {e}")
+
+        # UI Input
+        col_in1, col_in2 = st.columns(2)
+        with col_in1:
+            hex_input = st.text_area("Input S-Box (Hex)", height=100)
+            if st.button("Parse Hex"):
+                try:
+                    sbox_arr = parse_hex_sbox(hex_input)
+                    sbox_source_name = "S-box Manual (Hex)"
+                    st.success("Berhasil memproses input Hex.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        
+        with col_in2:
+            uploaded_xlsx = st.file_uploader("Upload File .xlsx", type=["xlsx"])
+            if uploaded_xlsx:
+                if st.button("Proses XLSX"):
+                    try:
+                        sbox_arr = parse_xlsx_sbox(uploaded_xlsx)
+                        sbox_source_name = "S-box Upload (XLSX)"
+                        st.success("Berhasil memproses file XLSX.")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+    else: # Generator Mode
+        st.info("Mode ini akan membangkitkan Matriks Affine 8x8 Acak (Invertible) dan membentuk S-box baru.")
+        
+        if st.button("🔄 Generate S-box Baru"):
+            try:
+                with st.spinner("Membangkitkan Matriks & S-box..."):
+                    gen_sbox, gen_matrix = sbox_utils.generate_affine_sbox()
+                    
+                    st.session_state['generated_sbox'] = gen_sbox
+                    st.session_state['generated_matrix'] = gen_matrix
+                    st.success("S-box berhasil dibangkitkan!")
+            except Exception as e:
+                st.error(f"Gagal generate: {e}")
+        
+        if 'generated_sbox' in st.session_state:
+            sbox_arr = st.session_state['generated_sbox']
+            generated_matrix = st.session_state['generated_matrix']
+            sbox_source_name = "S-box Generator Affine"
             
-            # --- Visualisasi Grafik
-            st.markdown("### Grafik Analisis S-Box")
-            fig2, ax2 = plt.subplots(figsize=(7, 4))
-            params = ["Non-Linearity", "SAC", "BIC", "Differential Uniformity"]
-            values = [nl, sac, bic, du]
-            ideal = [112, 0.5, 0.5, 4]
-            ax2.bar(params, values, color=["#1E3A8A", "#0d6efd", "#198754", "#dc3545"], alpha=0.7, label="S-Box Anda")
-            ax2.plot(params, ideal, "o--", color="gray", label="Ideal")
-            ax2.set_ylabel("Nilai")
-            ax2.set_title("Perbandingan Parameter Keamanan S-Box")
-            ax2.legend()
-            st.pyplot(fig2)
-        except Exception as e:
-            st.error(f"Gagal analisis: {e}")
+            st.markdown("#### Matriks Affine Terpilih (8x8):")
+            st.dataframe(pd.DataFrame(generated_matrix), use_container_width=False, width=400)
+
+
+    # --- Unified Analysis Section ---
+    if sbox_arr:
+        st.markdown("---")
+        st.markdown(f"### 2. Analisis & Visualisasi: {sbox_source_name}")
+        
+        
+        # 1. Visualization
+        col_vis1, col_vis2 = st.columns([1, 2])
+        with col_vis1:
+            st.markdown("#### Heatmap S-box")
+            fig = plot_heatmap(sbox_arr, sbox_source_name)
+            st.pyplot(fig)
+            
+        with col_vis2:
+            st.markdown("#### Matriks S-box (Hex)")
+            # Display as 16x16 dataframe of hex strings
+            matrix_hex = np.array([f"{x:02X}" for x in sbox_arr]).reshape(16, 16)
+            st.dataframe(pd.DataFrame(matrix_hex, columns=[f"{i:X}" for i in range(16)], index=[f"{i:X}" for i in range(16)]), height=400)
+
+        # 2. Metrics Calculation
+        st.markdown("### 3. Perbandingan Benchmark")
+        st.info("Membandingkan performa 10 metrik kriptografi dengan standar industri.")
+        
+        if st.button("📊 Jalankan Analisis Lengkap"):
+            with st.spinner("Menghitung 10 metrik kriptografi... (Ini mungkin memakan waktu beberapa detik)"):
+                try:
+                    # Calculate User Metrics
+                    user_metrics = metrics.get_all_metrics(sbox_arr)
+                    
+                    # Standard Benchmarks
+                    
+                    @st.cache_data
+                    def get_benchmark_metrics():
+                        m_aes = metrics.get_all_metrics(AES_SBOX)
+                        m_k44 = metrics.get_all_metrics(SBOX_K44)
+                        return m_aes, m_k44
+                    
+                    # NOTE: First run might be slow
+                    aes_metrics, k44_metrics = get_benchmark_metrics()
+                    
+                    metric_names = [
+                        "NL", "SAC", "BIC-NL", "BIC-SAC", 
+                        "LAP", "DAP", "DU", "AD", "TO", "CI"
+                    ]
+                    
+                    rows = []
+                    for k in metric_names:
+                        rows.append([
+                            aes_metrics[k], 
+                            k44_metrics[k], 
+                            user_metrics[k]
+                        ])
+                        
+                    df_compare = pd.DataFrame(rows, columns=["AES Standar", "S-box K44", sbox_source_name], index=metric_names)
+                    
+                    # --- Highlighting Logic ---
+                    def highlight_best(data):
+                        # data is a DataFrame. We return a DataFrame of styles.
+                        styles = pd.DataFrame('', index=data.index, columns=data.columns)
+                        
+                        goals = {
+                            "NL": "max",
+                            "SAC": "target_0.5",
+                            "BIC-NL": "max", 
+                            "BIC-SAC": "target_0.5", 
+                            "LAP": "min",
+                            "DAP": "min",
+                            "DU": "min",
+                            "AD": "max", 
+                            "TO": "min", 
+                            "CI": "max"  
+                        }
+                        
+                        for metric in data.index:
+                            row_vals = data.loc[metric]
+                            rule = goals.get(metric, "max")
+                            
+                            if rule == "max":
+                                best_val = row_vals.max()
+                                is_best = row_vals == best_val
+                            elif rule == "min":
+                                best_val = row_vals.min()
+                                is_best = row_vals == best_val
+                            elif rule == "target_0.5":
+                                diffs = abs(row_vals - 0.5)
+                                min_diff = diffs.min()
+                                is_best = diffs == min_diff
+                            
+                            # Apply style
+                            for col in data.columns:
+                                if is_best[col]:
+                                    styles.loc[metric, col] = 'background-color: #d1e7dd; color: #0f5132; font-weight: bold'
+                                    
+                        return styles
+
+                    st.markdown("#### Tabel Perbandingan")
+                    st.dataframe(df_compare.style.apply(highlight_best, axis=None).format("{:.5g}"), use_container_width=True)
+                    
+                    st.caption("**Keterangan Warna Hijau**: Menunjukkan nilai terbaik di antara ketiga kandidat untuk metrik tersebut.")
+                            
+                except Exception as e:
+                    st.error(f"Kesalahan dalam perhitungan metrik: {e}")
