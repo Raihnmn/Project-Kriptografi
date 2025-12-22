@@ -130,6 +130,41 @@ st.markdown("""
     .stSidebar .sidebar-content a {
         color: #fff !important;
     }
+    /* Perbaiki warna teks info box di sidebar agar kontras */
+    .stSidebar .stAlert, .stSidebar .stAlert * {
+        color: #fff !important;
+        background: rgba(30,58,138,0.15) !important;
+    }
+    /* Pertebal judul dan info penting di sidebar.info */
+    .stSidebar .stAlert b, .stSidebar .stAlert strong {
+        color: #ffb703 !important;
+        font-weight: bold;
+    }
+    /* Perbaiki warna link di sidebar.info */
+    .stSidebar .stAlert a {
+        color: #ffd166 !important;
+    }
+    /* Perbaiki warna teks navigasi agar kontras dan jelas */
+    .stSidebar, .stSidebar .sidebar-content, .stSidebar .sidebar-content * {
+        color: #fff !important;
+    }
+    /* Perbaiki warna radio button dan label */
+    .stSidebar .stRadio label, .stSidebar .stRadio div, .stSidebar .stRadio span {
+        color: #fff !important;
+    }
+    /* Perbaiki warna teks metric dan info di sidebar */
+    .stSidebar .stMarkdown, .stSidebar .stInfo, .stSidebar .stText, .stSidebar .stTitle {
+        color: #fff !important;
+    }
+    /* Perbaiki warna teks radio yang tidak aktif */
+    .stSidebar .stRadio [data-baseweb="radio"] > div > div {
+        color: #fff !important;
+    }
+    /* Perbaiki warna teks radio yang aktif */
+    .stSidebar .stRadio [aria-checked="true"] {
+        color: #ffb703 !important;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -162,6 +197,21 @@ def calculate_sv_score(nl, sac, bic_nl, bic_sac):
 if page == "Dashboard (Beranda)":
     st.markdown('<div class="main-header">Analisis S-box K44 & Kripto Suite</div>', unsafe_allow_html=True)
     
+
+    # --- Kelompok Profile & Kampus ---
+    st.markdown("""
+    <div class="card" style="border-left: 5px solid #198754;">
+        <h3>Profil Kelompok</h3>
+        <ul style='font-size:1.1em;'>
+            <li><b>Nama:</b> Raihan Muhammad Nafi'          | <b>NIM:</b> 2304130019</li>
+            <li><b>Nama:</b> Ahmad Galvin Firdaus Zahid     | <b>NIM:</b> 2304130021</li>
+            <li><b>Nama:</b> Muhammad Fila Nafan            | <b>NIM:</b> 2304130042</li>
+            <li><b>Nama:</b> Ahmad Iffad Izzudin            | <b>NIM:</b> 2304130044</li>
+        </ul>
+        <div style='margin-top:1em;font-size:1.15em;'><b>Kampus:</b> Universitas Negeri Semarang</div>
+    </div>
+    """, unsafe_allow_html=True)
+
     # 1. Research Context
     st.markdown("""
     <div class="card">
