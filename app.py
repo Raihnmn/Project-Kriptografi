@@ -573,6 +573,9 @@ elif page == "S-Box Analyzer & Eksplorasi":
     sbox_source_name = "S-box Anda"
 
     if source_choice == "Input Manual / Upload File":
+        # Restore previously parsed S-box from session to survive reruns
+        if 'uploaded_sbox' in st.session_state:
+            sbox_arr = st.session_state['uploaded_sbox']
         st.info("Masukkan S-Box dalam format heksadesimal (512 karakter, 256 byte) atau unggah file .xlsx.")
         
         # Helper parsing functions
@@ -585,15 +588,88 @@ elif page == "S-Box Analyzer & Eksplorasi":
             if len(arr) != 256: raise ValueError("S-Box harus 256 elemen")
             return arr
 
-        def parse_xlsx_sbox(uploaded_file):
+        def parse_tabular_sbox(uploaded_file):
+            """Baca S-box dari CSV/XLSX dengan toleransi format:
+            - Menghapus baris/kolom kosong di tepi
+            - Jika >=16x16, ambil kiri-atas 16x16
+            - Jika tidak, flatten dan ambil 256 nilai non-kosong pertama
+            - Mendukung nilai desimal, hex tanpa/ dengan prefix 0x
+            """
+            name = getattr(uploaded_file, "name", "").lower()
             try:
-                df = pd.read_excel(uploaded_file, header=None)
-                if df.shape == (16, 16): arr = df.values.flatten().tolist()
-                elif df.shape == (256, 1): arr = df[0].tolist()
-                else: raise ValueError("Format file harus 16x16 atau 256x1.")
-                return [int(x) for x in arr]
+                if name.endswith(".csv"):
+                    df = pd.read_csv(uploaded_file, header=None, dtype=str)
+                else:
+                    df = pd.read_excel(uploaded_file, header=None, dtype=str)
             except Exception as e:
                 raise ValueError(f"Gagal membaca file: {e}")
+
+            # Ganti NaN -> None untuk memudahkan pengecekan kosong
+            df = df.where(pd.notnull(df), None)
+
+            # Helper untuk cek baris/kolom kosong sepenuhnya
+            def _is_empty_value(v):
+                if v is None:
+                    return True
+                s = str(v).strip()
+                return s == "" or s.lower() in {"nan", "none"}
+
+            def _row_empty(series):
+                return all(_is_empty_value(x) for x in series)
+
+            def _col_empty(series):
+                return all(_is_empty_value(x) for x in series)
+
+            # Trim baris/kolom kosong di tepi (atas/bawah/kiri/kanan)
+            while len(df) > 0 and _row_empty(df.iloc[0].tolist()):
+                df = df.iloc[1:]
+            while len(df) > 0 and _row_empty(df.iloc[-1].tolist()):
+                df = df.iloc[:-1]
+            while df.shape[1] > 0 and _col_empty(df.iloc[:, 0].tolist()):
+                df = df.iloc[:, 1:]
+            while df.shape[1] > 0 and _col_empty(df.iloc[:, -1].tolist()):
+                df = df.iloc[:, :-1]
+
+            rows, cols = df.shape
+
+            # Ambil 16x16 jika tersedia, jika lebih besar potong kiri-atas
+            cells = None
+            if rows >= 16 and cols >= 16:
+                cells = df.iloc[:16, :16].values.flatten().tolist()
+            else:
+                # Flatten ambil 256 nilai non-kosong pertama (row-major)
+                flat = df.values.flatten().tolist()
+                cells = [x for x in flat if not _is_empty_value(x)]
+                if len(cells) > 256:
+                    cells = cells[:256]
+
+            if len(cells) != 256:
+                raise ValueError(
+                    f"Format file harus 16x16 atau 256x1. Ditemukan {rows}x{cols} dengan {len(cells)} nilai terisi."
+                )
+
+            def parse_elem(x):
+                # Sudah string/None akibat dtype=str di atas
+                if x is None:
+                    raise ValueError("Terdapat elemen kosong dalam 256 nilai pertama.")
+                s = str(x).strip()
+                # Izinkan bentuk heks tanpa/ dengan 0x, atau desimal
+                try:
+                    if s.lower().startswith("0x"):
+                        return int(s, 16)
+                    # Coba desimal langsung (tangani nilai seperti '170' atau '170.0')
+                    if "." in s:
+                        # angka float dari excel -> konversi aman
+                        return int(float(s))
+                    return int(s)
+                except Exception:
+                    # Terakhir coba heks tanpa prefix
+                    return int(s, 16)
+
+            arr = [parse_elem(v) for v in cells]
+            if not all(0 <= v <= 255 for v in arr):
+                raise ValueError("Semua elemen S-Box harus berada pada rentang 0..255.")
+            return arr
 
         # UI Input
         col_in1, col_in2 = st.columns(2)
@@ -603,20 +679,22 @@ elif page == "S-Box Analyzer & Eksplorasi":
                 try:
                     sbox_arr = parse_hex_sbox(hex_input)
                     sbox_source_name = "S-box Manual (Hex)"
+                    st.session_state['uploaded_sbox'] = sbox_arr
                     st.success("Berhasil memproses input Hex.")
                 except Exception as e:
                     st.error(f"Error: {e}")
         
         with col_in2:
-            uploaded_xlsx = st.file_uploader("Upload File .xlsx", type=["xlsx"])
-            if uploaded_xlsx:
-                if st.button("Proses XLSX"):
+            uploaded_tab = st.file_uploader("Upload File (.xlsx/.csv)", type=["xlsx", "csv"])
+            if uploaded_tab:
+                if st.button("Proses File"):
                     try:
-                        sbox_arr = parse_xlsx_sbox(uploaded_xlsx)
-                        sbox_source_name = "S-box Upload (XLSX)"
-                        st.success("Berhasil memproses file XLSX.")
+                        sbox_arr = parse_tabular_sbox(uploaded_tab)
+                        sbox_source_name = "S-box Upload (File)"
+                        st.session_state['uploaded_sbox'] = sbox_arr
+                        st.success("Berhasil memproses file tabel.")
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Error: Gagal membaca file: {e}")
 
     else: # Generator Mode
         st.info("Mode ini akan membangkitkan Matriks Affine 8x8 Acak (Invertible) dan membentuk S-box baru.")
