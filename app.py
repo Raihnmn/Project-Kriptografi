@@ -397,7 +397,20 @@ elif page == "Playground Enkripsi":
         col_settings, col_io = st.columns([1, 2])
         
         with col_settings:
-            sbox_choice = st.radio("Pilih S-box:", ("Standar AES", "K44 Diusulkan"), key="text_sbox")
+            sbox_options = ["AES Standar (FIPS 197)", "S-box K44 (Proposal Riset)", "S-box Kustom (Dari Generator/Upload)"]
+            sbox_choice = st.radio("Pilih S-box:", sbox_options, key="text_sbox")
+            
+            custom_sbox_active = False
+            custom_sbox_arr = None
+            
+            if sbox_choice == "S-box Kustom (Dari Generator/Upload)":
+                if 'custom_sbox' in st.session_state:
+                    custom_sbox_active = True
+                    custom_sbox_arr = st.session_state['custom_sbox']
+                    st.info("✅ Menggunakan S-box kustom yang tersimpan.")
+                else:
+                    st.warning("⚠️ Belum ada S-box kustom. Silakan ke tab 'S-Box Analyzer' untuk generate/upload.")
+            
             key_input = render_key_input()
         
         with col_io:
@@ -405,28 +418,88 @@ elif page == "Playground Enkripsi":
             
             with sub_tab_enc:
                 plaintext = st.text_area("Masukkan Plaintext:", value="Halo Dunia! Menguji S-box K44.", height=150)
-                if st.button("Enkripsi Teks"):
-                    sbox = AES_SBOX if sbox_choice == "Standar AES" else SBOX_K44
+                # Validation for process button
+                disable_text_btn = (sbox_choice == "S-box Kustom (Dari Generator/Upload)" and not custom_sbox_active)
+                
+                if st.button("Enkripsi Teks", disabled=disable_text_btn):
+                    if sbox_choice == "AES Standar (FIPS 197)":
+                        sbox = AES_SBOX
+                    elif sbox_choice == "S-box K44 (Proposal Riset)":
+                        sbox = SBOX_K44
+                    else:
+                        sbox = custom_sbox_arr
                     key = key_input.encode('utf-8')
                     
                     start_time = time.time()
                     try:
                         ciphertext = aes_engine.encrypt_text(plaintext.encode('utf-8'), key, sbox)
                         end_time = time.time()
-                        st.success(f"Enkripsi Selesai ({end_time - start_time:.4f}s)")
                         
-                        hex_output = ciphertext.hex()
-                        st.code(hex_output, language="text")
-                        st.caption("Output (Hexadecimal)")
-                        
-                        # Store in session state for convenience in decryption tab? (Optional)
+                        # Save to session state
+                        st.session_state['text_enc_result'] = {
+                            'ciphertext': ciphertext,
+                            'time': end_time - start_time,
+                            'sbox_choice': sbox_choice,
+                            'plaintext': plaintext,
+                            'key': key,
+                            'sbox': sbox
+                        }
                     except Exception as e:
                         st.error(f"Terjadi kesalahan: {str(e)}")
 
+                # Check if result exists and display it
+                if 'text_enc_result' in st.session_state:
+                    res = st.session_state['text_enc_result']
+                    # Verify if sbox choice matches current state (optional? let's keep it persistent even if user switches option until they click encrypt again)
+                    
+                    st.success(f"Enkripsi Selesai ({res['time']:.4f}s)")
+                    
+                    hex_output = res['ciphertext'].hex()
+                    st.code(hex_output, language="text")
+                    st.caption("Output (Hexadecimal)")
+                    
+                    # --- Post-Encryption Analysis (Text) ---
+                    st.markdown("---")
+                    st.markdown("#### 📊 Analisis Kualitas Enkripsi")
+                    
+                    # 1. Entropy
+                    entropy_val = metrics.calc_entropy(res['ciphertext'])
+                    st.metric("Shannon Entropy (Ideal ~8.0)", f"{entropy_val:.5f}")
+                    st.caption("Nilai mendekati 8 menandakan ciphertext sangat acak dan sulit diprediksi.")
+                    
+                    # 2. Avalanche Effect (Interactive)
+                    if st.button("⚡ Uji Avalanche Effect"):
+                            # Create modified plaintext (flip 1 bit)
+                            pt_bytes = res['plaintext'].encode('utf-8')
+                            if len(pt_bytes) > 0:
+                                mod_pt = bytearray(pt_bytes)
+                                mod_pt[0] ^= 1 # Flip bit
+                                
+                                # Encrypt modified
+                                c2 = aes_engine.encrypt_text(bytes(mod_pt), res['key'], res['sbox'])
+                                
+                                # Calculate Hamming Distance
+                                dist = metrics.hamming_distance(int.from_bytes(res['ciphertext'], 'big'), int.from_bytes(c2, 'big'))
+                                total_bits = len(res['ciphertext']) * 8
+                                if total_bits > 0:
+                                    percent_change = (dist / total_bits) * 100
+                                else:
+                                    percent_change = 0
+                                
+                                st.info(f"Perubahan Bit: **{percent_change:.2f}%** (Diharapkan ~50%)")
+                                st.write(f"Total Bit Berbeda: {dist} / {total_bits}")
+                            else:
+                                st.warning("Plaintext kosong.")
+
             with sub_tab_dec:
                 cipher_input = st.text_area("Masukkan Ciphertext (Hex):", help="Tempel output hex dari enkripsi di sini.", height=150)
-                if st.button("Dekripsi Teks"):
-                    sbox = AES_SBOX if sbox_choice == "Standar AES" else SBOX_K44
+                if st.button("Dekripsi Teks", disabled=(sbox_choice == "S-box Kustom (Dari Generator/Upload)" and not custom_sbox_active)):
+                    if sbox_choice == "AES Standar (FIPS 197)":
+                        sbox = AES_SBOX
+                    elif sbox_choice == "S-box K44 (Proposal Riset)":
+                        sbox = SBOX_K44
+                    else:
+                        sbox = custom_sbox_arr if custom_sbox_active else AES_SBOX
                     key = key_input.encode('utf-8')
                     
                     try:
@@ -451,7 +524,18 @@ elif page == "Playground Enkripsi":
         st.subheader("Demo Enkripsi/Dekripsi Gambar")
         st.warning("Catatan: Mode ECB mempertahankan pola visual pada gambar. Ini digunakan untuk mendemonstrasikan properti 'confusion'.")
         
-        img_sbox_choice = st.radio("Pilih S-box Gambar:", ("Standar AES", "K44 Diusulkan"), horizontal=True, key="img_sbox")
+        img_sbox_opts = ["AES Standar (FIPS 197)", "S-box K44 (Proposal Riset)", "S-box Kustom"]
+        img_sbox_choice = st.radio("Pilih S-box Gambar:", img_sbox_opts, horizontal=True, key="img_sbox")
+        
+        img_custom_active = False
+        img_custom_sbox = None
+        if img_sbox_choice == "S-box Kustom":
+             if 'custom_sbox' in st.session_state:
+                 img_custom_active = True
+                 img_custom_sbox = st.session_state['custom_sbox']
+                 st.info("✅ Menggunakan S-box kustom.")
+             else:
+                 st.warning("⚠️ S-box kustom belum tersedia.")
         img_key_input = st.text_input("Kunci Gambar:", value="RahasiaGambar123")
         st.caption("ℹ️ Kunci bebas (akan otomatis disesuaikan menjadi 16 karakter).")
         
@@ -470,8 +554,14 @@ elif page == "Playground Enkripsi":
                 with col_orig:
                     st.image(image, caption="Gambar Asli (Resized)", use_container_width=True)
                 
-                if st.button("Enkripsi Gambar"):
-                    sbox = AES_SBOX if img_sbox_choice == "Standar AES" else SBOX_K44
+                disable_img_enc = (img_sbox_choice == "S-box Kustom" and not img_custom_active)
+                if st.button("Enkripsi Gambar", disabled=disable_img_enc):
+                    if img_sbox_choice == "AES Standar (FIPS 197)":
+                        sbox = AES_SBOX
+                    elif img_sbox_choice == "S-box K44 (Proposal Riset)":
+                        sbox = SBOX_K44
+                    else:
+                        sbox = img_custom_sbox
                     key = img_key_input.encode('utf-8')
                     
                     with st.spinner("Sedang mengenkripsi..."):
@@ -505,6 +595,59 @@ elif page == "Playground Enkripsi":
                             file_name="encrypted_noise.png",
                             mime="image/png"
                         )
+                        
+                        # --- Post-Encryption Analysis (Image) ---
+                        st.markdown("---")
+                        st.markdown("#### 📊 Analisis Kualitas Enkripsi")
+                        
+                        # 1. Histogram (Original vs Encrypted)
+                        st.markdown("**1. Analisis Histogram**")
+                        # Use enc_pixels and pixels (original)
+                        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+                        
+                        # Original Histogram (Grayscale intensity)
+                        # Ensure we convert to grayscale for proper histogram of intensity or use RGB flattened
+                        # Usually histogram of pixel values (0-255)
+                        orig_flat = pixels.flatten()
+                        enc_flat = enc_pixels.flatten()
+                        
+                        ax1.hist(orig_flat, bins=256, color='blue', alpha=0.7)
+                        ax1.set_title("Histogram Asli")
+                        ax1.set_xlim([0, 256])
+                        
+                        ax2.hist(enc_flat, bins=256, color='red', alpha=0.7)
+                        ax2.set_title("Histogram Terenkripsi")
+                        ax2.set_xlim([0, 256])
+                        
+                        st.pyplot(fig)
+                        st.caption("Gambar terenkripsi sebaiknya memiliki histogram yang rata (uniform).")
+                        
+                        # 2. Entropy
+                        st.markdown("**2. Skor Entropi**")
+                        img_entropy = metrics.calc_entropy(display_data) # use the encrypted bytes displayed
+                        ent_col1, ent_col2 = st.columns([1, 2])
+                        with ent_col1:
+                             st.metric("Entropy", f"{img_entropy:.5f}")
+                        with ent_col2:
+                             if img_entropy > 7.99:
+                                 st.success("🌟 Excellent! (Sangat Acak)")
+                             elif img_entropy > 7.9:
+                                 st.info("Good (Cukup Acak)")
+                             else:
+                                 st.warning("Poor (Kurang Acak)")
+                        
+                        # 3. Correlation
+                        st.markdown("**3. Korelasi Piksel**")
+                        # Calc correlation
+                        corr_orig = metrics.calc_image_correlation(flat_pixels, width, height)
+                        corr_enc = metrics.calc_image_correlation(display_data, width, height)
+                        
+                        corr_data = {
+                            "Arah": ["Horizontal", "Vertikal", "Diagonal"],
+                            "Gambar Asli": [corr_orig["Horizontal"], corr_orig["Vertical"], corr_orig["Diagonal"]],
+                            "Terenkripsi": [corr_enc["Horizontal"], corr_enc["Vertical"], corr_enc["Diagonal"]]
+                        }
+                        st.table(pd.DataFrame(corr_data))
 
         with tab_img_dec:
             st.info("Unggah gambar 'noise' hasil enkripsi sebelumnya untuk didekripsi kembali.")
@@ -514,8 +657,13 @@ elif page == "Playground Enkripsi":
                 e_image = Image.open(enc_img_file)
                 st.image(e_image, caption="Gambar Terenkripsi (Input)", width=200)
                 
-                if st.button("Dekripsi Gambar"):
-                    sbox = AES_SBOX if img_sbox_choice == "Standar AES" else SBOX_K44
+                if st.button("Dekripsi Gambar", disabled=(img_sbox_choice == "S-box Kustom" and not img_custom_active)):
+                    if img_sbox_choice == "AES Standar (FIPS 197)":
+                        sbox = AES_SBOX
+                    elif img_sbox_choice == "S-box K44 (Proposal Riset)":
+                        sbox = SBOX_K44
+                    else:
+                        sbox = img_custom_sbox if img_custom_active else AES_SBOX
                     key = img_key_input.encode('utf-8')
                     
                     with st.spinner("Sedang mendekripsi..."):
@@ -680,7 +828,8 @@ elif page == "S-Box Analyzer & Eksplorasi":
                     sbox_arr = parse_hex_sbox(hex_input)
                     sbox_source_name = "S-box Manual (Hex)"
                     st.session_state['uploaded_sbox'] = sbox_arr
-                    st.success("Berhasil memproses input Hex.")
+                    st.session_state['custom_sbox'] = sbox_arr
+                    st.success("✅ Berhasil memproses input Hex & Disimpan ke Memori.")
                 except Exception as e:
                     st.error(f"Error: {e}")
         
@@ -692,7 +841,8 @@ elif page == "S-Box Analyzer & Eksplorasi":
                         sbox_arr = parse_tabular_sbox(uploaded_tab)
                         sbox_source_name = "S-box Upload (File)"
                         st.session_state['uploaded_sbox'] = sbox_arr
-                        st.success("Berhasil memproses file tabel.")
+                        st.session_state['custom_sbox'] = sbox_arr
+                        st.success("✅ Berhasil memproses file tabel & Disimpan ke Memori.")
                     except Exception as e:
                         st.error(f"Error: Gagal membaca file: {e}")
 
@@ -705,8 +855,9 @@ elif page == "S-Box Analyzer & Eksplorasi":
                     gen_sbox, gen_matrix = sbox_utils.generate_affine_sbox()
                     
                     st.session_state['generated_sbox'] = gen_sbox
+                    st.session_state['custom_sbox'] = gen_sbox
                     st.session_state['generated_matrix'] = gen_matrix
-                    st.success("S-box berhasil dibangkitkan!")
+                    st.success("✅ S-box berhasil dibangkitkan & Disimpan ke Memori!")
             except Exception as e:
                 st.error(f"Gagal generate: {e}")
         

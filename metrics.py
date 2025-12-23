@@ -410,3 +410,91 @@ def get_all_metrics(sbox):
         "TO": to_val,
         "CI": ci
     }
+
+def calc_entropy(data):
+    """Calculates Shannon Entropy of a byte array."""
+    if not data:
+        return 0.0
+    
+    # Count frequencies
+    counts = np.bincount(np.frombuffer(data, dtype=np.uint8), minlength=256)
+    probs = counts / len(data)
+    
+    # Filter non-zero probabilities
+    probs = probs[probs > 0]
+    
+    # Entropy formula
+    entropy = -np.sum(probs * np.log2(probs))
+    return entropy
+
+def calc_image_correlation(image_data, width, height):
+    """
+    Calculates correlation coefficient of adjacent pixels.
+    Returns dictionary with Horizontal, Vertical, and Diagonal correlations.
+    """
+    if not image_data:
+        return {"Horizontal": 0, "Vertical": 0, "Diagonal": 0}
+
+    # Convert bytes to numpy array
+    # Note: image_data is bytes. RGB or Gray.
+    # We assume RGB input or handle length check.
+    total_pixels = width * height
+    # Check if 3 channels or 1
+    if len(image_data) == total_pixels * 3:
+        pixels = np.frombuffer(image_data, dtype=np.uint8).reshape(height, width, 3)
+        # Convert to grayscale for correlation analysis: 0.299R + 0.587G + 0.114B
+        gray = np.dot(pixels[...,:3], [0.299, 0.587, 0.114]).astype(np.uint8)
+    elif len(image_data) == total_pixels:
+        pixels = np.frombuffer(image_data, dtype=np.uint8).reshape(height, width)
+        gray = pixels
+    else:
+        # Fallback for mismatched size (padding etc)
+        # Truncate or pad?
+        # Let's just take as many pixels as fit
+        usable = (len(image_data) // 3) * 3
+        if usable > 0:
+             # loose approximation
+             pixels_flat = np.frombuffer(image_data[:usable], dtype=np.uint8)
+             gray = pixels_flat[::3] # Take R channel strided
+        else:
+             return {"Horizontal": 0, "Vertical": 0, "Diagonal": 0}
+        
+    def get_corr(x, y):
+        if len(x) < 2: return 0.0
+        # Check for constant arrays to avoid RuntimeWarning in corrcoef
+        if np.std(x) == 0 or np.std(y) == 0:
+            return 0.0
+        return np.corrcoef(x, y)[0, 1]
+
+    # If it was reshaped correctly above
+    try:
+        if len(gray.shape) == 2:
+            # Horizontal: x vs x+1
+            h_x = gray[:, :-1].flatten()
+            h_y = gray[:, 1:].flatten()
+            corr_h = get_corr(h_x, h_y)
+            
+            # Vertical
+            v_x = gray[:-1, :].flatten()
+            v_y = gray[1:, :].flatten()
+            corr_v = get_corr(v_x, v_y)
+            
+            # Diagonal
+            d_x = gray[:-1, :-1].flatten()
+            d_y = gray[1:, 1:].flatten()
+            corr_d = get_corr(d_x, d_y)
+        else:
+            # 1D Fallback
+            h_x = gray[:-1]
+            h_y = gray[1:]
+            corr_h = get_corr(h_x, h_y)
+            corr_v = 0
+            corr_d = 0
+    except:
+        return {"Horizontal": 0, "Vertical": 0, "Diagonal": 0}
+    
+    return {
+        "Horizontal": corr_h,
+        "Vertical": corr_v,
+        "Diagonal": corr_d
+    }
