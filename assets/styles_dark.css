@@ -23,6 +23,206 @@ body, .main, .block-container {
   color: var(--text) !important;
 }
 
+/* Ensure general text contrasts well in dark mode */
+.block-container p,
+.block-container li,
+.block-container label,
+.block-container span,
+.block-container small,
+.block-container strong,
+.block-container em,
+.block-container h1,
+.block-container h2,
+.block-container h3,
+.block-container h4,
+.block-container h5,
+.block-container h6 {
+  color: var(--text) !important;
+}
+
+.block-container a { color: #93c5fd !important; }
+.block-container hr { border-color: rgba(255,255,255,0.12) !important; }
+
+/* Streamlit markdown blocks */
+div[data-testid="stMarkdownContainer"] * { color: var(--text) !important; }
+
+/* Alerts in main content */
+main .stAlert,
+main .stAlert * {
+  color: var(--text) !important;
+}
+main .stAlert {
+  background: rgba(255,255,255,0.06) !important;
+  border-left: 4px solid var(--brand);
+}
+
+/* Metrics */
+div[data-testid="stMetricValue"] { color: #c7d2fe !important; }
+div[data-testid="stMetricDelta"] { color: #a7f3d0 !important; }
+div[data-testid="stMetricLabel"] { color: var(--text) !important; }
+
+/* Tables */
+div[data-testid="stTable"] table { background: transparent !important; }
+div[data-testid="stTable"] th,
+div[data-testid="stTable"] td { color: var(--text) !important; border-color: rgba(255,255,255,0.15) !important; }
+
+div[data-testid="stDataFrame"] { box-shadow: var(--shadow-soft); border-radius: 10px; background: rgba(255,255,255,0.03); }
+div[data-testid="stDataFrame"] * { color: var(--text) !important; }
+
+/* Code blocks */
+pre, code, div[data-testid="stCode"] {
+  background: #0b1220 !important;
+  color: #e5e7eb !important;
+  border-radius: 10px !important;
+}
+
+/* Expanders */
+details[open] { background: rgba(255,255,255,0.03); border-radius: 10px; }
+summary { color: var(--text) !important; }
+
+/* File uploader (dropzone) */
+div[data-testid="stFileUploadDropzone"],
+div[data-testid="stFileUploaderDropzone"],
+div[class*="uploadDropzone"],
+div[class*="fileUploader"] {
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--text) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  border-radius: 12px !important;
+}
+
+div[data-testid="stFileUploadDropzone"] *,
+div[data-testid="stFileUploaderDropzone"] *,
+div[class*="uploadDropzone"] *,
+div[class*="fileUploader"] * {
+  color: var(--text) !important;
+}
+
+div[data-testid="stFileUploadDropzone"] svg,
+div[data-testid="stFileUploaderDropzone"] svg,
+div[class*="uploadDropzone"] svg,
+div[class*="fileUploader"] svg {
+  fill: #cbd5e1 !important; /* slate-300 */
+}
+
+/* Remove left icon/thumbnail block entirely in dark mode */
+div[data-testid="stFileUploadDropzone"] [role="button"] > div:first-child,
+div[data-testid="stFileUploaderDropzone"] [role="button"] > div:first-child,
+div[data-testid="stFileUploader"] [role="button"] > div:first-child,
+div[data-testid="stFileUploadDropzone"] [role="button"] > div:has(svg),
+div[data-testid="stFileUploaderDropzone"] [role="button"] > div:has(svg),
+div[data-testid="stFileUploader"] [role="button"] > div:has(svg) {
+  display: none !important;
+}
+
+/* Tighten spacing after icon hidden */
+div[data-testid="stFileUploadDropzone"] [role="button"],
+div[data-testid="stFileUploaderDropzone"] [role="button"],
+div[data-testid="stFileUploader"] [role="button"] {
+  gap: 0.25rem !important;
+  padding-left: 0.75rem !important;
+}
+
+/* Remove any light inner boxes inside dropzone */
+div[data-testid="stFileUploadDropzone"] div,
+div[data-testid="stFileUploaderDropzone"] div,
+div[class*="uploadDropzone"] div,
+div[class*="fileUploader"] div {
+  background-color: transparent !important;
+}
+div[data-testid="stFileUploadDropzone"] span,
+div[data-testid="stFileUploaderDropzone"] span,
+div[class*="uploadDropzone"] span,
+div[class*="fileUploader"] span {
+  background-color: transparent !important;
+}
+div[data-testid="stFileUploadDropzone"] [role="img"],
+div[data-testid="stFileUploaderDropzone"] [role="img"],
+div[class*="uploadDropzone"] [role="img"],
+div[class*="fileUploader"] [role="img"] {
+  background: transparent !important;
+}
+
+/* Browse files button inside dropzone */
+div[data-testid="stFileUploadDropzone"] button,
+div[data-testid="stFileUploaderDropzone"] button,
+div[class*="uploadDropzone"] button,
+div[class*="fileUploader"] button {
+  background: var(--brand) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  border-radius: 10px !important;
+}
+div[data-testid="stFileUploadDropzone"] button:hover,
+div[data-testid="stFileUploaderDropzone"] button:hover,
+div[class*="uploadDropzone"] button:hover,
+div[class*="fileUploader"] button:hover {
+  background: var(--brand-strong) !important;
+}
+
+/* Extra coverage for different Streamlit versions */
+div[data-testid="stFileUploader"] { color: var(--text) !important; }
+div[data-testid="stFileUploader"] * { color: var(--text) !important; }
+div[data-testid="stFileUploader"] div[role="button"],
+div[data-testid="stFileUploader"] section,
+div[data-testid="stFileUploader"] section > div {
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--text) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  border-radius: 12px !important;
+}
+div[data-testid="stFileUploader"] p,
+div[data-testid="stFileUploader"] small,
+div[data-testid="stFileUploader"] span,
+div[data-testid="stFileUploader"] label { color: var(--text) !important; }
+div[data-testid="stFileUploader"] svg, div[data-testid="stFileUploader"] svg * { fill: #cbd5e1 !important; }
+div[data-testid="stFileUploader"] button { background: var(--brand) !important; color: #fff !important; border-radius: 10px !important; }
+div[data-testid="stFileUploader"] button:hover { background: var(--brand-strong) !important; }
+
+/* Hide light placeholder thumbnail/icon block inside dropzone */
+div[data-testid="stFileUploadDropzone"] [role="button"] > div:first-child,
+div[data-testid="stFileUploaderDropzone"] [role="button"] > div:first-child,
+div[data-testid="stFileUploader"] [role="button"] > div:first-child {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  border: none !important;
+}
+/* Ensure icon container has no light background in any case */
+div[data-testid="stFileUploadDropzone"] [role="button"] [style*="background"],
+div[data-testid="stFileUploaderDropzone"] [role="button"] [style*="background"],
+div[data-testid="stFileUploader"] [role="button"] [style*="background"],
+div[data-testid="stFileUploadDropzone"] [role="button"] [style*="background-color"],
+div[data-testid="stFileUploaderDropzone"] [role="button"] [style*="background-color"],
+div[data-testid="stFileUploader"] [role="button"] [style*="background-color"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+/* Keep SVG visible and colored for dark */
+div[data-testid="stFileUploadDropzone"] [role="button"] svg,
+div[data-testid="stFileUploaderDropzone"] [role="button"] svg,
+div[data-testid="stFileUploader"] [role="button"] svg { fill: #cbd5e1 !important; }
+
+/* Edge/Chrome fallback: neutralize any light placeholder blocks */
+div[data-testid="stFileUploadDropzone"] [role="button"] > div:not(:last-child),
+div[data-testid="stFileUploaderDropzone"] [role="button"] > div:not(:last-child),
+div[data-testid="stFileUploader"] [role="button"] > div:not(:last-child) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+div[data-testid="stFileUploadDropzone"] [role="button"] > div:not(:last-child)::before,
+div[data-testid="stFileUploaderDropzone"] [role="button"] > div:not(:last-child)::before,
+div[data-testid="stFileUploader"] [role="button"] > div:not(:last-child)::before,
+div[data-testid="stFileUploadDropzone"] [role="button"] > div:not(:last-child)::after,
+div[data-testid="stFileUploaderDropzone"] [role="button"] > div:not(:last-child)::after,
+div[data-testid="stFileUploader"] [role="button"] > div:not(:last-child)::after {
+  content: none !important;
+}
+
 .main-header {
   font-size: 2.6rem;
   font-weight: 800;
