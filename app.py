@@ -21,157 +21,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for polished look
-st.markdown("""
-<style>
-    body, .main, .block-container {
-        background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%) !important;
-        color: #222 !important;
-    }
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1E3A8A;
-        margin-bottom: 1rem;
-        text-shadow: 0 2px 8px rgba(30,58,138,0.08);
-    }
-    .sub-header {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #222;
-        margin-top: 2rem;
-    }
-    .card {
-        padding: 1.5rem;
-        border-radius: 12px;
-        background-color: #f4f6fb;
-        box-shadow: 0 4px 12px rgba(30,58,138,0.10);
-        margin-bottom: 1rem;
-        border-left: 6px solid #1E3A8A;
-        color: #222;
-    }
-    .score-card {
-        background-color: #e9ecef;
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        border: 2px solid #dee2e6;
-        box-shadow: 0 2px 8px rgba(30,58,138,0.08);
-        color: #222;
-    }
-    .score-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #dc3545;
-    }
-    .score-good {
-        color: #198754;
-    }
-    .metric-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #0d6efd;
-    }
-    .metric-label {
-        font-size: 1rem;
-        color: #222;
-    }
-    .sbox-card {
-        background: #f4f6fb;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(30,58,138,0.08);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        border-left: 6px solid #1E3A8A;
-        color: #222;
-    }
-    .sbox-badge {
-        display: inline-block;
-        padding: 0.3em 0.8em;
-        border-radius: 8px;
-        font-size: 1em;
-        font-weight: 600;
-        background: #e9ecef;
-        color: #1E3A8A;
-        margin-right: 0.5em;
-    }
-    .sbox-badge.good { background: #d1e7dd; color: #198754; }
-    .sbox-badge.warn { background: #fff3cd; color: #856404; }
-    .sbox-badge.bad { background: #f8d7da; color: #dc3545; }
-    .stButton>button {
-        background: #1E3A8A;
-        color: #fff;
-        border-radius: 8px;
-        font-weight: 600;
-        padding: 0.5em 1.2em;
-        box-shadow: 0 2px 8px rgba(30,58,138,0.08);
-        border: none;
-    }
-    .stButton>button:hover {
-        background: #0d6efd;
-        color: #fff;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background: #e0e7ff;
-        border-radius: 8px 8px 0 0;
-        font-weight: 600;
-        color: #1E3A8A;
-    }
-    .stTabs [aria-selected="true"] {
-        background: #1E3A8A;
-        color: #fff;
-    }
-    .stSidebar {
-        background: #1E3A8A !important;
-        color: #fff !important;
-    }
-    .stSidebar .sidebar-content {
-        background: #1E3A8A !important;
-        color: #fff !important;
-    }
-    .stSidebar .sidebar-content a {
-        color: #fff !important;
-    }
-    /* Perbaiki warna teks info box di sidebar agar kontras */
-    .stSidebar .stAlert, .stSidebar .stAlert * {
-        color: #fff !important;
-        background: rgba(30,58,138,0.15) !important;
-    }
-    /* Pertebal judul dan info penting di sidebar.info */
-    .stSidebar .stAlert b, .stSidebar .stAlert strong {
-        color: #ffb703 !important;
-        font-weight: bold;
-    }
-    /* Perbaiki warna link di sidebar.info */
-    .stSidebar .stAlert a {
-        color: #ffd166 !important;
-    }
-    /* Perbaiki warna teks navigasi agar kontras dan jelas */
-    .stSidebar, .stSidebar .sidebar-content, .stSidebar .sidebar-content * {
-        color: #fff !important;
-    }
-    /* Perbaiki warna radio button dan label */
-    .stSidebar .stRadio label, .stSidebar .stRadio div, .stSidebar .stRadio span {
-        color: #fff !important;
-    }
-    /* Perbaiki warna teks metric dan info di sidebar */
-    .stSidebar .stMarkdown, .stSidebar .stInfo, .stSidebar .stText, .stSidebar .stTitle {
-        color: #fff !important;
-    }
-    /* Perbaiki warna teks radio yang tidak aktif */
-    .stSidebar .stRadio [data-baseweb="radio"] > div > div {
-        color: #fff !important;
-    }
-    /* Perbaiki warna teks radio yang aktif */
-    .stSidebar .stRadio [aria-checked="true"] {
-        color: #ffb703 !important;
-        font-weight: bold;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Load improved themeable CSS later (overrides), default inline removed
 
 # --- Navigation ---
 st.sidebar.title("Navigasi")
+# Theme selector
+ui_theme = st.sidebar.selectbox("Tema UI", ["Terang (Light)", "Gelap (Dark)"], index=0)
+st.sidebar.caption(f"Tema aktif: {ui_theme}")
 page = st.sidebar.radio("Pilih Halaman", ["Dashboard (Beranda)", "Analisis S-box", "Playground Enkripsi", "S-Box Analyzer & Eksplorasi"])
 
 st.sidebar.markdown("---")
@@ -181,6 +37,14 @@ st.sidebar.info(
     "*AES S-box modification uses affine matrices exploration*\n\n"
     "v1.2.0 (With Generator)"
 )
+
+# Inject external CSS based on theme selection (overrides any earlier styles)
+try:
+    css_file = "assets/styles_dark.css" if "Gelap" in ui_theme else "assets/styles_light.css"
+    with open(css_file, "r", encoding="utf-8") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+except Exception:
+    pass
 
 # --- Helper Functions ---
 def plot_heatmap(sbox, title):
@@ -969,6 +833,25 @@ elif page == "S-Box Analyzer & Eksplorasi":
                     st.dataframe(df_compare.style.apply(highlight_best, axis=None).format("{:.5g}"), use_container_width=True)
                     
                     st.caption("**Keterangan Warna Hijau**: Menunjukkan nilai terbaik di antara ketiga kandidat untuk metrik tersebut.")
+                    # CSV download for comparison table
+                    try:
+                        csv_bytes = df_compare.to_csv(index=True).encode("utf-8")
+                        st.download_button(
+                            label="⬇️ Unduh Tabel Perbandingan (CSV)",
+                            data=csv_bytes,
+                            file_name="perbandingan_metrik_sbox.csv",
+                            mime="text/csv"
+                        )
+                    except Exception:
+                        pass
                             
                 except Exception as e:
                     st.error(f"Kesalahan dalam perhitungan metrik: {e}")
+
+# --- Footer (global) ---
+st.markdown(
+    """
+    <div class="footer">🛡️ S-Box Analyzer • Dibangun dengan Streamlit • Tema dapat diubah di sidebar</div>
+    """,
+    unsafe_allow_html=True
+)
