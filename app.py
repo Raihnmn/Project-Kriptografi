@@ -15,7 +15,7 @@ import metrics
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="Analisis S-box K44 & Kripto Suite",
+    page_title="S-Box Analyzer",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
